@@ -524,6 +524,10 @@ exports.updateTransaction = async (req, res) => {
 
 exports.getDashboardData = async (req, res) => {
     try {
+        const customers = await Customer.find();
+        let uniqueGroups = [...new Set(customers.map(customer => customer.group ))]; 
+
+
         // Count total customers
         const no_of_customers = await Customer.countDocuments();
 
@@ -537,7 +541,9 @@ exports.getDashboardData = async (req, res) => {
         // Calculate total withdrawals
         const withdrawals = withdrawalTransactions.reduce((acc, t) => acc + t.amount, 0);
 
-        res.status(200).json({ no_of_customers, income, withdrawals });
+        const groups = 
+
+        res.status(200).json({ no_of_customers, income, withdrawals, no_of_groups: uniqueGroups.length });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error getting dashboard data' });

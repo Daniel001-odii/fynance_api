@@ -10,6 +10,7 @@ const customerSchema = new mongoose.Schema({
   group: {
     type: String,
     required: true,
+    set: v => v.toUpperCase() 
   },
   address: {
     type: String,
