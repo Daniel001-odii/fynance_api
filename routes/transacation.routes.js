@@ -7,7 +7,7 @@ const {
     getTransactionsForAllGroups, 
     getDashboardData,
     deleteTransaction
-} = require('../controllers/transactions.controller');
+} = require('../api/controllers/transactions.controller');
 
 router.post('/', createTransaction);
 

@@ -2,9 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-const customerRoutes = require('./routes/customers.routes');
-const weekRoutes = require('./routes/week.routes');
-const transactionRoutes = require('./routes/transacation.routes');
+const customerRoutes = require('../routes/customers.routes');
+const transactionRoutes = require('../routes/transacation.routes');
+require('dotenv').config();
+
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -13,12 +14,24 @@ const port = process.env.PORT || 3000;
 const fs = require('fs');
 const path = require('path');
 
-
 const Customer = require('./models/customers.model')
 const Transaction = require('./models/transaction.model')
 
+// Configure CORS
+const corsOptions = {
+  origin: [
+    'http://localhost:5173'
+  ],// Specify your frontend URL
+  credentials: true // Enable credentials
+};
+
+// Use the cors middleware with options to specify the allowed origin [----DO NOT REMOVE FRPM HERE----]
+app.use(cors(corsOptions));
+
+
+
 // Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/ledger_app', {
+mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })
@@ -37,7 +50,6 @@ app.get('/', (req, res) => {
 
 // Register customer routes
 app.use('/api/customers', customerRoutes);
-// app.use('/api/weeks', weekRoutes);
 app.use('/api/txns', transactionRoutes);
 
 
@@ -114,3 +126,6 @@ app.post('/import-customers', async (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
+
+module.exports = app;
