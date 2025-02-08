@@ -20,7 +20,8 @@ const Transaction = require('./models/transaction.model')
 // Configure CORS
 const corsOptions = {
   origin: [
-    'http://localhost:5173'
+    'http://localhost:5173',
+    'https://fynance-alpha.vercel.app',
   ],// Specify your frontend URL
   credentials: true // Enable credentials
 };
