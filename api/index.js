@@ -72,7 +72,7 @@ app.use((err, req, res, next) => {
 
 
 // Multer setup for handling file uploads
-const upload = multer({ 
+/* const upload = multer({ 
     dest: 'uploads/', 
     storage: multer.diskStorage({
       destination: (req, file, cb) => {
@@ -87,6 +87,8 @@ const upload = multer({
       }
     })
 });
+ */
+const upload = multer({ dest: 'uploads/' });
   
 
 // Function to get the next group index
