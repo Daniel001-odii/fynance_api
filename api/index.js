@@ -10,7 +10,7 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-
+const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 
@@ -63,13 +63,29 @@ app.use((err, req, res, next) => {
 
 
 
-// Store last used index for each group
-const groupIndexes = new Map();
+// Multer setup for handling file uploads
+const upload = multer({ 
+    dest: 'uploads/', 
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => {
+        const dir = path.join(__dirname, 'uploads');
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+      },
+      filename: (req, file, cb) => {
+        cb(null, file.originalname);
+      }
+    })
+  });
+  
 
-// Function to get next `group_index`
+// Function to get the next group index
+let groupIndexes = new Map();
 const getNextGroupIndex = async (group) => {
     group = group.toUpperCase();
-    
+
     if (!groupIndexes.has(group)) {
         const lastCustomer = await Customer.findOne({ group })
             .sort({ group_index: -1 })
@@ -82,9 +98,9 @@ const getNextGroupIndex = async (group) => {
     return nextIndex;
 };
 
-// Sanitize customer data and assign `group_index`
+// Sanitize customer data and assign group_index
 const sanitizeCustomerData = async (customer) => {
-    const group = customer.reg_number ? customer.reg_number.replace(/[0-9]/g, '').toUpperCase() : "Nil";
+    const group = customer.reg_number ? customer.reg_number.replace(/[0-9]/g, '').toUpperCase() : "Nill";
     const group_index = await getNextGroupIndex(group);
 
     return {
@@ -116,10 +132,20 @@ const sanitizeTransactionData = (transaction, ownerId, uniqueTransactions) => {
     };
 };
 
-app.post('/import-customers', async (req, res) => {
+// API Endpoint to Upload and Process JSON File
+app.post('/api/import-customers', upload.single('file'), async (req, res) => {
     try {
-        const filePath = path.join(__dirname, 'customers-data.json');
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        // Read and parse the uploaded JSON file
+        const filePath = path.resolve(req.file.path); // Ensure the full path
+        if (!fs.existsSync(filePath)) {
+            return res.status(400).json({ message: "File not found!" });
+        }
         const rawData = fs.readFileSync(filePath);
+
         let customers = JSON.parse(rawData);
 
         let customerDocs = [];
@@ -127,7 +153,7 @@ app.post('/import-customers', async (req, res) => {
 
         for (let customer of customers) {
             const { id, reg_number, balance, transactions, ...rest } = customer;
-            
+
             let sanitizedCustomer = await sanitizeCustomerData(customer);
             let newCustomer = new Customer(sanitizedCustomer);
             let savedCustomer = await newCustomer.save();
@@ -149,7 +175,11 @@ app.post('/import-customers', async (req, res) => {
             await Transaction.insertMany(transactionDocs);
         }
 
+        // Remove the uploaded file after processing
+        fs.unlinkSync(filePath);
+
         res.status(201).json({ message: 'Customers and transactions imported successfully' });
+        groupIndexes = new Map();
     } catch (error) {
         console.error('Error importing data:', error);
         res.status(500).json({ message: 'Error processing data' });
