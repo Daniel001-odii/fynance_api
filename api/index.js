@@ -62,64 +62,98 @@ app.use((err, req, res, next) => {
 });
 
 
-const sanitizeCustomerData = (customer) => {
-  return {
-      name: customer.name && customer.name.trim() !== "" ? customer.name : "Unknown",
-      phone: customer.phone && customer.phone.trim() !== "" ? customer.phone : "0000000000",
-      address: customer.address && customer.address.trim() !== "" ? customer.address : "N/A",
-      group: customer.reg_number ? customer.reg_number.replace(/[0-9]/g, '') : "A",
-      // regNo: customer.reg_number ? customer.reg_number.replace(/[0-9]/g, '') : "N/A",
-      // regDate: customer.date ? new Date(customer.date) : new Date()
-      regDate: customer.date ? new Date(customer.date) : new Date(customer.reg_date),
-  };
+
+// Store last used index for each group
+const groupIndexes = new Map();
+
+// Function to get next `group_index`
+const getNextGroupIndex = async (group) => {
+    group = group.toUpperCase();
+    
+    if (!groupIndexes.has(group)) {
+        const lastCustomer = await Customer.findOne({ group })
+            .sort({ group_index: -1 })
+            .select("group_index");
+        groupIndexes.set(group, lastCustomer ? lastCustomer.group_index : 0);
+    }
+
+    const nextIndex = groupIndexes.get(group) + 1;
+    groupIndexes.set(group, nextIndex);
+    return nextIndex;
 };
 
-// Utility function to sanitize transactions
-const sanitizeTransactionData = (transaction, ownerId) => {
-  return {
-      owner: ownerId,
-      // amount: typeof transaction.amount === "number" ? transaction.amount : 0,
-      amount: Number(transaction.amount),
-      type: ["deposit", "withdrawal"].includes(transaction.type) ? transaction.type : "deposit",
-      date: transaction.date ? new Date(transaction.date) : new Date()
-  };
+// Sanitize customer data and assign `group_index`
+const sanitizeCustomerData = async (customer) => {
+    const group = customer.reg_number ? customer.reg_number.replace(/[0-9]/g, '').toUpperCase() : "Nil";
+    const group_index = await getNextGroupIndex(group);
+
+    return {
+        name: customer.name && customer.name.trim() !== "" ? customer.name : "Unknown",
+        phone: customer.phone && customer.phone.trim() !== "" ? customer.phone : "0000000000",
+        address: customer.address && customer.address.trim() !== "" ? customer.address : "N/A",
+        group,
+        group_index,
+        regDate: customer.date ? new Date(customer.date) : new Date(customer.reg_date),
+    };
+};
+
+// Sanitize transactions
+const sanitizeTransactionData = (transaction, ownerId, uniqueTransactions) => {
+    const amount = Number(transaction.amount);
+    if (isNaN(amount) || amount <= 0) return null;
+
+    const transactionDate = transaction.date ? new Date(transaction.date) : new Date();
+    const uniqueKey = `${amount}-${transaction.type}-${transactionDate.toISOString()}`;
+
+    if (uniqueTransactions.has(uniqueKey)) return null;
+    uniqueTransactions.add(uniqueKey);
+
+    return {
+        owner: ownerId,
+        amount,
+        type: ["deposit", "withdrawal"].includes(transaction.type) ? transaction.type : "deposit",
+        date: transactionDate
+    };
 };
 
 app.post('/import-customers', async (req, res) => {
-  try {
-      const filePath = path.join(__dirname, 'customers-data.json'); // Update with correct path
-      const rawData = fs.readFileSync(filePath);
-      let customers = JSON.parse(rawData);
+    try {
+        const filePath = path.join(__dirname, 'customers-data.json');
+        const rawData = fs.readFileSync(filePath);
+        let customers = JSON.parse(rawData);
 
-      let customerDocs = [];
-      let transactionDocs = [];
+        let customerDocs = [];
+        let transactionDocs = [];
 
-      for (let customer of customers) {
-          const { id, reg_number, balance, transactions, ...rest } = customer;
-          // const { id, group, balance, transactions, ...rest } = customer;
+        for (let customer of customers) {
+            const { id, reg_number, balance, transactions, ...rest } = customer;
+            
+            let sanitizedCustomer = await sanitizeCustomerData(customer);
+            let newCustomer = new Customer(sanitizedCustomer);
+            let savedCustomer = await newCustomer.save();
+            customerDocs.push(savedCustomer);
 
-          let sanitizedCustomer = sanitizeCustomerData(customer);
-          let newCustomer = new Customer(sanitizedCustomer);
-          let savedCustomer = await newCustomer.save();
-          customerDocs.push(savedCustomer);
+            let uniqueTransactions = new Set();
 
-          for (let transaction of transactions) {
-              const { id, time, ...transRest } = transaction;
-              let sanitizedTransaction = sanitizeTransactionData(transRest, savedCustomer._id);
-              transactionDocs.push(sanitizedTransaction);
-          }
-      }
+            for (let transaction of transactions) {
+                const { id, time, ...transRest } = transaction;
+                let sanitizedTransaction = sanitizeTransactionData(transRest, savedCustomer._id, uniqueTransactions);
+                
+                if (sanitizedTransaction) {
+                    transactionDocs.push(sanitizedTransaction);
+                }
+            }
+        }
 
-      // Insert transactions in bulk
-      if (transactionDocs.length > 0) {
-          await Transaction.insertMany(transactionDocs);
-      }
+        if (transactionDocs.length > 0) {
+            await Transaction.insertMany(transactionDocs);
+        }
 
-      res.status(201).json({ message: 'Customers and transactions imported successfully' });
-  } catch (error) {
-      console.error('Error importing data:', error);
-      res.status(500).json({ message: 'Error processing data' });
-  }
+        res.status(201).json({ message: 'Customers and transactions imported successfully' });
+    } catch (error) {
+        console.error('Error importing data:', error);
+        res.status(500).json({ message: 'Error processing data' });
+    }
 });
 
 

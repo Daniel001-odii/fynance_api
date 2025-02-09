@@ -12,6 +12,15 @@ const customerSchema = new mongoose.Schema({
     required: true,
     set: v => v.toUpperCase() 
   },
+
+  // group index for sorting in sub group...
+  group_index: {
+    type: Number,
+    required: true,
+    unique: false,
+  },
+
+
   address: {
     type: String,
     required: true

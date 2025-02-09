@@ -10,11 +10,26 @@ exports.createCustomer = async (req, res) => {
         group,
         regDate,
         address,
-        phone
+        phone,
+        group_index,
     } = req.body;
 
-    if(!name || !group || !address || !phone){
+    if(!name || !group || !address || !phone || !group_index){
         return res.status(400).json({message: "All fields are required"});
+    }
+
+    // make sure group_index is number and is unique
+    const existingGroupIndex = await Customer.findOne({ group, group_index });
+    if(existingGroupIndex){
+      return res.status(400).json({ message: "Customer with group index already exists"});
+    }
+
+    if(!Number(group_index) || Number(group_index) < 0){
+      return res.status(400).json({ message: "invalid group index"});
+    }
+
+    if(Number(group_index > 20)){
+      return res.status(400).json({ message: "Sorry maximum customers per group reached"});
     }
 
     // check for existing customer by name
@@ -26,6 +41,7 @@ exports.createCustomer = async (req, res) => {
     const customer = new Customer({
         name,
         group: group.toUpperCase(),
+        group_index,
         regDate,
         address,
         phone    

@@ -220,9 +220,9 @@ exports.getTransactionsForRegGroup = async (req, res) => {
 
         // Find all customers in registration group
         const customers = await Customer.find({
-            // regNo: new RegExp(`^${regGroup}`, 'i')
             group: regGroup.toUpperCase(),
-        });
+
+        }).sort({ group_index: 1})
 
         if(customers.length === 0 || !customers){
             return res.status(404).json({ message: 'No users found in this group'})
@@ -247,8 +247,8 @@ exports.getTransactionsForRegGroup = async (req, res) => {
         const customersData = customers.map(customer => {
             return {
                 _id: customer._id,
-                // regNo: customer.regNo,
                 group: customer.group,
+                group_index: customer.group_index,
                 name: customer.name,
                 address: customer.address,
                 regDate: customer.regDate.toISOString().split("T")[0],
@@ -388,8 +388,8 @@ exports.getTransactionsForAllGroups = async (req, res) => {
         const customersData = customers.map(customer => {
             return {
                 _id: customer._id,
-                // regNo: customer.regNo,
                 group: customer.group,
+                group_index: customer.group_index,
                 name: customer.name,
                 address: customer.address,
                 regDate: customer.regDate.toISOString().split("T")[0],
