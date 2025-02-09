@@ -40,7 +40,11 @@ mongoose.connect(process.env.MONGODB_URI, {
 .catch(err => console.error('Could not connect to MongoDB:', err));
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin, // Allow only your frontend
+    methods: 'GET,POST,PUT,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Authorization'
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -78,7 +82,7 @@ const upload = multer({
         cb(null, file.originalname);
       }
     })
-  });
+});
   
 
 // Function to get the next group index
