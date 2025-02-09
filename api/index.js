@@ -27,7 +27,7 @@ const corsOptions = {
 };
 
 // Use the cors middleware with options to specify the allowed origin [----DO NOT REMOVE FRPM HERE----]
-app.use(cors(corsOptions));
+// app.use(cors(corsOptions));
 
 
 
@@ -41,10 +41,15 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // Middleware
 app.use(cors({
-    origin, // Allow only your frontend
+    origin: [
+        'http://localhost:5173',
+        'https://fynance-alpha.vercel.app',
+    ], // Allow only your frontend
     methods: 'GET,POST,PUT,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization'
 }));
+
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
