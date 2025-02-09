@@ -367,7 +367,7 @@ exports.getTransactionsForAllGroups = async (req, res) => {
         console.log("start and enddate: ", start, end);
 
         // Find all customers in registration group
-        const customers = await Customer.find().sort({ group: 1 });
+        const customers = await Customer.find().sort({ group: 1, group_index: 1 });
 
         const totalTransactions = await Transaction.find({
             owner: { $in: customers.map(c => c._id) }
