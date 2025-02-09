@@ -88,7 +88,7 @@ app.use((err, req, res, next) => {
     })
 });
  */
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ storage: multer.memoryStorage() });
   
 
 // Function to get the next group index
@@ -149,14 +149,8 @@ app.post('/api/import-customers', upload.single('file'), async (req, res) => {
             return res.status(400).json({ message: 'No file uploaded' });
         }
 
-        // Read and parse the uploaded JSON file
-        const filePath = path.resolve(req.file.path); // Ensure the full path
-        if (!fs.existsSync(filePath)) {
-            return res.status(400).json({ message: "File not found!" });
-        }
-        const rawData = fs.readFileSync(filePath);
-
-        let customers = JSON.parse(rawData);
+        // Parse the JSON data directly from memory (buffer)
+        let customers = JSON.parse(req.file.buffer.toString());
 
         let customerDocs = [];
         let transactionDocs = [];
@@ -185,10 +179,9 @@ app.post('/api/import-customers', upload.single('file'), async (req, res) => {
             await Transaction.insertMany(transactionDocs);
         }
 
-        // Remove the uploaded file after processing
-        fs.unlinkSync(filePath);
-
         res.status(201).json({ message: 'Customers and transactions imported successfully' });
+
+        // Reset group index tracking
         groupIndexes = new Map();
     } catch (error) {
         console.error('Error importing data:', error);
