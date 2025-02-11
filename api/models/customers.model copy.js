@@ -17,6 +17,7 @@ const customerSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
+    default: "0000"
   },
   regDate: {
     type: Date,
