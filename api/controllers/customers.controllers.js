@@ -18,6 +18,9 @@ exports.createCustomer = async (req, res) => {
         return res.status(400).json({message: "All fields are required"});
     }
 
+    // if phone number is provided then use, else use 0000
+    const default_phone = phone ? phone : "0000";
+
     // make sure group_index is number and is unique
     const existingGroupIndex = await Customer.findOne({ group, group_index });
     if(existingGroupIndex){
@@ -43,7 +46,8 @@ exports.createCustomer = async (req, res) => {
         group: group.toUpperCase(),
         group_index,
         regDate,
-        address 
+        address, 
+        phone: default_phone,
     });
 
     const savedCustomer = await customer.save();
