@@ -251,7 +251,7 @@ exports.getTransactionsForRegGroup = async (req, res) => {
                 group_index: customer.group_index,
                 name: customer.name,
                 address: customer.address,
-                regDate: customer.regDate.toISOString().split("T")[0],
+                regDate: customer?.regDate?.toISOString()?.split("T")[0] || (new Date()).toISOString()?.split("T")[0],
                 phone: customer.phone,
                 deposit_txn: [],
                 withdrawal_txn: [],
