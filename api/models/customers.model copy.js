@@ -17,7 +17,6 @@ const customerSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: true
   },
   regDate: {
     type: Date,

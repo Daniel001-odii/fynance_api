@@ -14,7 +14,7 @@ exports.createCustomer = async (req, res) => {
         group_index,
     } = req.body;
 
-    if(!name || !group || !address || !phone || !group_index){
+    if(!name || !group || !address || !group_index){
         return res.status(400).json({message: "All fields are required"});
     }
 
@@ -43,8 +43,7 @@ exports.createCustomer = async (req, res) => {
         group: group.toUpperCase(),
         group_index,
         regDate,
-        address,
-        phone    
+        address 
     });
 
     const savedCustomer = await customer.save();
