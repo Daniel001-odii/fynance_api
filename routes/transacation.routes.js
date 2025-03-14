@@ -6,7 +6,8 @@ const {
     updateTransaction,
     getTransactionsForAllGroups, 
     getDashboardData,
-    deleteTransaction
+    deleteTransaction,
+    generateExcelReports
 } = require('../api/controllers/transactions.controller');
 
 router.post('/', createTransaction);
@@ -21,5 +22,8 @@ router.delete('/:id/delete', deleteTransaction);
 
 // update transaction date and amount..
 router.put('/:txn_id/update', updateTransaction);
+
+
+router.get('/reports', generateExcelReports);
 
 module.exports = router;

@@ -573,3 +573,161 @@ exports.deleteTransaction = async (req, res) => {
       res.status(500).json({ message: 'Error deleting customer data' });
     }
   };
+
+
+
+
+  /* 
+  download reports as excel sheets...
+  */
+  const ExcelJS = require('exceljs');
+//   const Customer = require('../models/customer'); // Adjust path as needed
+//   const Transaction = require('../models/transaction'); // Adjust path as needed
+//   const mongoose = require('mongoose');
+  
+  // Controller to generate both Excel sheets
+  exports.generateExcelReports = async (req, res) => {
+      try {
+          // Create a new workbook
+          const workbook = new ExcelJS.Workbook();
+          
+          // 1. First Sheet - Customer Details
+          const customerSheet = workbook.addWorksheet('Customers');
+          
+          // Define columns for customer sheet
+          customerSheet.columns = [
+              { header: 'Name', key: 'name', width: 20 },
+              { header: 'Group', key: 'group', width: 15 },
+              { header: 'Group Index', key: 'group_index', width: 15 },
+              { header: 'Address', key: 'address', width: 30 },
+              { header: 'Phone', key: 'phone', width: 15 },
+              { header: 'Registration Date', key: 'regDate', width: 20 },
+              { header: 'Balance', key: 'balance', width: 15 }
+          ];
+  
+          // Fetch all customers
+          const customers = await Customer.find().sort({ group: 1, group_index: 1 });
+          
+          // Add customer data to sheet
+          customers.forEach(customer => {
+              customerSheet.addRow({
+                  name: customer.name,
+                  group: customer.group,
+                  group_index: customer.group_index,
+                  address: customer.address,
+                  phone: customer.phone,
+                  regDate: new Date(customer.regDate).toLocaleDateString(),
+                  balance: customer.balance
+              });
+          });
+  
+          // Style the customer sheet headers
+          customerSheet.getRow(1).font = { bold: true };
+          customerSheet.getRow(1).fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFCCCCCC' }
+          };
+  
+          // 2. Second Sheet - Transactions by Month
+          const transactions = await Transaction.find()
+              .populate('owner')
+              .sort({ date: 1 });
+  
+          // Group transactions by month
+          const transactionsByMonth = {};
+          transactions.forEach(transaction => {
+              const monthYear = transaction.date.toLocaleString('default', { 
+                  month: 'long', 
+                  year: 'numeric' 
+              });
+              
+              if (!transactionsByMonth[monthYear]) {
+                  transactionsByMonth[monthYear] = [];
+              }
+              transactionsByMonth[monthYear].push(transaction);
+          });
+  
+          // Create a sheet for each month
+          for (const [monthYear, monthTransactions] of Object.entries(transactionsByMonth)) {
+              const transactionSheet = workbook.addWorksheet(monthYear);
+              
+              // Get all unique dates in this month
+              const uniqueDates = [...new Set(monthTransactions.map(t => 
+                  new Date(t.date).toLocaleDateString()
+              ))].sort((a, b) => new Date(a) - new Date(b));
+  
+              // Create columns: username + dates
+              const columns = [
+                  { header: 'Username', key: 'username', width: 20 },
+                  ...uniqueDates.map(date => ({
+                      header: date,
+                      key: date,
+                      width: 15
+                  }))
+              ];
+  
+              transactionSheet.columns = columns;
+  
+              // Group transactions by customer
+              const transactionsByCustomer = {};
+              monthTransactions.forEach(t => {
+                  const customerId = t.owner._id.toString();
+                  if (!transactionsByCustomer[customerId]) {
+                      transactionsByCustomer[customerId] = {
+                          username: t.owner.name,
+                          transactions: {}
+                      };
+                  }
+                  const dateKey = new Date(t.date).toLocaleDateString();
+                  if (!transactionsByCustomer[customerId].transactions[dateKey]) {
+                      transactionsByCustomer[customerId].transactions[dateKey] = 0;
+                  }
+                  // Add or subtract based on transaction type
+                  const amount = t.type === 'deposit' ? t.amount : -t.amount;
+                  transactionsByCustomer[customerId].transactions[dateKey] += amount;
+              });
+  
+              // Add rows to sheet
+              Object.values(transactionsByCustomer).forEach(customerData => {
+                  const rowData = { username: customerData.username };
+                  uniqueDates.forEach(date => {
+                      rowData[date] = customerData.transactions[date] || 0;
+                  });
+                  transactionSheet.addRow(rowData);
+              });
+  
+              // Style the transaction sheet headers
+              transactionSheet.getRow(1).font = { bold: true };
+              transactionSheet.getRow(1).fill = {
+                  type: 'pattern',
+                  pattern: 'solid',
+                  fgColor: { argb: 'FFCCCCCC' }
+              };
+  
+              // Add conditional formatting for negative values
+              uniqueDates.forEach((date, index) => {
+                  const columnLetter = String.fromCharCode(66 + index); // Start from B
+                  transactionSheet.getColumn(index + 2).eachCell((cell, rowNumber) => {
+                      if (rowNumber > 1 && cell.value < 0) {
+                          cell.font = { color: { argb: 'FFFF0000' } }; // Red for negative
+                      }
+                  });
+              });
+          }
+  
+          // Write to buffer
+          const buffer = await workbook.xlsx.writeBuffer();
+  
+          // Set response headers
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          res.setHeader('Content-Disposition', 'attachment; filename="Customer_Transactions.xlsx"');
+  
+          // Send the buffer
+          res.send(buffer);
+  
+      } catch (error) {
+          console.error(error);
+          res.status(500).json({ message: 'Error generating Excel reports', error: error.message });
+      }
+  };
