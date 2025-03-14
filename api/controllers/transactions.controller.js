@@ -602,7 +602,7 @@ exports.deleteTransaction = async (req, res) => {
               { header: 'Address', key: 'address', width: 30 },
               { header: 'Phone', key: 'phone', width: 15 },
               { header: 'Registration Date', key: 'regDate', width: 20 },
-              { header: 'Balance', key: 'balance', width: 15 }
+            //   { header: 'Balance', key: 'balance', width: 15 }
           ];
   
           // Fetch all customers
